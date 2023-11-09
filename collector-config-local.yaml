@@ -17,6 +17,13 @@ exporters:
     endpoint: tempo:4317
     tls:
       insecure: true
+  kafka:
+    brokers: # (default = localhost:9092): The list of kafka brokers
+      - kafka-1:9092 
+      - kafka-2:9092
+    topic: test # (default = otlp_spans for traces, otlp_metrics for metrics, otlp_logs for logs): The name of the kafka topic to export to.
+    protocol_version: 2.0.0
+
 
 service:
   pipelines:
@@ -27,7 +34,7 @@ service:
     traces:
       receivers: [otlp]
       processors: [batch]
-      exporters: [otlp]
+      exporters: [kafka]
   telemetry:
     logs:
       level: debug

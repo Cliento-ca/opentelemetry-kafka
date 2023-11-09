@@ -1,10 +1,82 @@
 version: '3.0'
 
 services:
+  zookeeper-1:
+    image: confluentinc/cp-zookeeper:latest
+    networks: 
+      - broker-kafka
+    container_name: zookeeper-1    
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - 22181:2181
+
+  zookeeper-2:
+    image: confluentinc/cp-zookeeper:latest
+    networks: 
+      - broker-kafka
+    container_name: zookeeper-2     
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - 32181:2181
+  
+  kafka-1:
+    image: confluentinc/cp-kafka:latest
+    networks: 
+      - broker-kafka 
+    container_name: kafka-1    
+    depends_on:
+      - zookeeper-1
+      - zookeeper-2
+    ports:
+      - 29092:29092
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper-1:2181,zookeeper-2:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-1:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+  
+  kafka-2:
+    image: confluentinc/cp-kafka:latest
+    networks: 
+      - broker-kafka 
+    container_name: kafka-2
+    depends_on:
+      - zookeeper-1
+      - zookeeper-2
+    ports:
+      - 39092:39092
+    environment:
+      KAFKA_BROKER_ID: 2
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper-1:2181,zookeeper-2:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka-2:9092,PLAINTEXT_HOST://localhost:39092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+  
+  kafdrop:
+    image: obsidiandynamics/kafdrop:latest
+    networks: 
+      - broker-kafka
+    container_name: kafdrop
+    depends_on:
+      - kafka
+    ports:
+      - 19000:9000
+    environment:
+      KAFKA_BROKERCONNECT: kafka-1:9092, kafka-2:9092
+
 
   hello-app:
     build: .
     image: hello-app:latest
+    networks: 
+      - broker-kafka
     container_name: hello-app
     hostname: hello-app
     depends_on:
@@ -26,6 +98,8 @@ services:
 
   collector:
     image: otel/opentelemetry-collector:latest
+    networks: 
+      - broker-kafka
     container_name: collector
     hostname: collector
     depends_on:
@@ -39,11 +113,16 @@ services:
     ports:
       - "5555:5555"
       - "6666:6666"
+  
 
   tempo:
     image: grafana/tempo:1.5.0
+    networks: 
+      - broker-kafka
     command: [ "-search.enabled=true", "-config.file=/etc/tempo.yaml" ]
     container_name: tempo
+    depends_on:
+      - kafka
     hostname: tempo
     volumes:
       - ./o11y-backend/tempo-config.yaml:/etc/tempo.yaml
@@ -76,6 +155,8 @@ services:
 
   grafana:
     image: grafana/grafana:9.2.2
+    networks: 
+      - broker-kafka
     container_name: grafana
     hostname: grafana 
     depends_on:
@@ -98,5 +179,7 @@ services:
       test: wget --no-verbose --tries=1 --spider http://localhost:3000 || exit 1
 
 networks:
-  default:
-    name: inst-java-apps-using-otel
+  # default:
+  #   name: inst-java-apps-using-otel
+  broker-kafka:
+    driver: bridge 
