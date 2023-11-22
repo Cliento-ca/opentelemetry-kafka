@@ -6,18 +6,6 @@ distributor:
     - "instance"
     - "version"
   receivers:
-    jaeger:
-      protocols:
-        thrift_http:
-        grpc:
-        thrift_binary:
-        thrift_compact:
-    zipkin:
-    otlp:
-      protocols:
-        http:
-        grpc:
-    opencensus:
     kafka:
       brokers: 
         - kafka-1:9092 
