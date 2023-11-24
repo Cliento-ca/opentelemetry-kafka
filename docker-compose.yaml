@@ -9,6 +9,9 @@ services:
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
+    volumes:
+      - ./kafka/data/zookeeper_data:/var/lib/zookeeper/data
+      - ./kafka/data/zookeeper_log:/var/lib/zookeeper/log
     ports:
       - 22181:2181
 
@@ -20,6 +23,9 @@ services:
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
+    volumes:
+    - ./kafka/data/zookeeper_data:/var/lib/zookeeper/data
+    - ./kafka/data/zookeeper_log:/var/lib/zookeeper/log  
     ports:
       - 32181:2181
   
@@ -65,12 +71,12 @@ services:
       - broker-kafka
     container_name: kafdrop
     depends_on:
-      - kafka
+      - kafka-1
+      - kafka-2
     ports:
       - 19000:9000
     environment:
       KAFKA_BROKERCONNECT: kafka-1:9092, kafka-2:9092
-
 
   hello-app:
     build: .
@@ -96,23 +102,29 @@ services:
       retries: 10
       test: curl --write-out 'HTTP %{http_code}' --fail --silent --output /dev/null http://localhost:8888/hello
 
-  collector:
+  collector-remote:
     image: otel/opentelemetry-collector:latest
     networks: 
       - broker-kafka
-    container_name: collector
+    container_name: collector-remote
     hostname: collector
-    depends_on:
-      tempo:
-        condition: service_healthy
-      prometheus:
-        condition: service_healthy
-    command: ["--config=/etc/collector-config.yaml"]
+    command: ["--config=/etc/collector-config-remote.yaml"]
     volumes:
-      - ./collector-config-local.yaml:/etc/collector-config.yaml
+      - ./collector-config-remote.yaml:/etc/collector-config-remote.yaml
     ports:
       - "5555:5555"
-      - "6666:6666"
+
+  collector-local:
+    image: otel/opentelemetry-collector:latest
+    networks: 
+      - broker-kafka
+    container_name: collector-local
+    hostname: collector
+    command: ["--config=/etc/collector-config-local.yaml"]
+    volumes:
+      - ./collector-config-local.yaml:/etc/collector-config-local.yaml
+    ports:
+      - "6666:6666"  
   
 
   tempo:
@@ -121,9 +133,10 @@ services:
       - broker-kafka
     command: [ "-search.enabled=true", "-config.file=/etc/tempo.yaml" ]
     container_name: tempo
-    depends_on:
-      - kafka
     hostname: tempo
+    depends_on:
+      - kafka-1
+      - kafka-2
     volumes:
       - ./o11y-backend/tempo-config.yaml:/etc/tempo.yaml
       - ./o11y-backend/tempo-overrides.yaml:/etc/overrides.yaml
@@ -137,13 +150,16 @@ services:
       test: wget --no-verbose --tries=1 --spider http://localhost:3200/status || exit 1
 
   prometheus:
-    image: prom/prometheus:v2.39.2
+    image: prom/prometheus:latest
+    networks: 
+      - broker-kafka
     container_name: prometheus
     hostname: prometheus
     command:
       - --config.file=/etc/prometheus.yaml
       - --web.enable-remote-write-receiver
-      - --enable-feature=exemplar-storage
+      - --enable-feature=exemplar-storage # https://prometheus.io/docs/prometheus/latest/feature_flags/
+      # - --enable-feature=otlp-write-receiver
     volumes:
       - ./o11y-backend/prometheus.yaml:/etc/prometheus.yaml
     ports:
@@ -179,7 +195,5 @@ services:
       test: wget --no-verbose --tries=1 --spider http://localhost:3000 || exit 1
 
 networks:
-  # default:
-  #   name: inst-java-apps-using-otel
   broker-kafka:
     driver: bridge 
