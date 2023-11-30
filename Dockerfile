@@ -1,9 +1,15 @@
-FROM maven:3.8.1-openjdk-17-slim
+# Build Stage
+FROM mcr.microsoft.com/dotnet/sdk:6.0-focal AS build
+WORKDIR /source
+COPY . .    
+RUN dotnet restore "./Hello/Hello.csproj" --disable-parallel
+RUN dotnet publish "./Hello/Hello.csproj" -c release -o /app --no-restore
 
-VOLUME /tmp
-ADD . /usr/src/app
-WORKDIR /usr/src/app
+# Serve Stage
+FROM mcr.microsoft.com/dotnet/sdk:6.0-focal
+WORKDIR /app
+COPY --from=build /app ./   
 
-RUN mvn clean package -DskipTests
-RUN curl -L https://github.com/aws-observability/aws-otel-java-instrumentation/releases/download/v1.28.1/aws-opentelemetry-agent.jar --output opentelemetry-javaagent-all.jar
-ENTRYPOINT [ "java", "-javaagent:opentelemetry-javaagent-all.jar", "-jar", "target/hello-app-1.0.jar" ]
+EXPOSE 5000
+
+ENTRYPOINT ["dotnet", "Hello.dll"]

@@ -78,17 +78,42 @@ services:
     environment:
       KAFKA_BROKERCONNECT: kafka-1:9092, kafka-2:9092
 
-  hello-app:
-    build: .
-    image: hello-app:latest
+  # hello-app:
+  #   build: .
+  #   image: hello-app:latest
+  #   networks: 
+  #     - broker-kafka
+  #   container_name: hello-app
+  #   hostname: hello-app
+  #   depends_on:
+  #     - collector
+  #   ports:
+  #     - "8888:8888"
+  #   environment:
+  #     - OTEL_TRACES_EXPORTER=otlp
+  #     - OTEL_METRICS_EXPORTER=otlp
+  #     - OTEL_EXPORTER_OTLP_ENDPOINT=http://collector:5555
+  #     - OTEL_TRACES_SAMPLER=always_on
+  #     - OTEL_IMR_EXPORT_INTERVAL=5000
+  #     - OTEL_METRIC_EXPORT_INTERVAL=5000
+  #     - OTEL_RESOURCE_ATTRIBUTES=service.name=hello-app,service.version=1.0,deployment.environment=development
+  #   healthcheck:
+  #     interval: 5s
+  #     retries: 10
+  #     test: curl --write-out 'HTTP %{http_code}' --fail --silent --output /dev/null http://localhost:8888/hello
+
+  hello-net:
+    image: cliento/hello:latest
     networks: 
       - broker-kafka
-    container_name: hello-app
-    hostname: hello-app
+    container_name: hello-net
+    hostname: hello-net
     depends_on:
-      - collector
+      - collector-remote
+    volumes:
+      - ${HOME}/.aspnet/https:/https/
     ports:
-      - "8888:8888"
+      - "5010:5000"
     environment:
       - OTEL_TRACES_EXPORTER=otlp
       - OTEL_METRICS_EXPORTER=otlp
@@ -96,11 +121,16 @@ services:
       - OTEL_TRACES_SAMPLER=always_on
       - OTEL_IMR_EXPORT_INTERVAL=5000
       - OTEL_METRIC_EXPORT_INTERVAL=5000
-      - OTEL_RESOURCE_ATTRIBUTES=service.name=hello-app,service.version=1.0,deployment.environment=development
+      - OTEL_RESOURCE_ATTRIBUTES=service.name=hello-net,service.version=1.0,deployment.environment=development
+      - ASPNETCORE_URLS=http://+5000
+      - ASPNETCORE_HTTP_PORT=https://+5001
+      - ASPNETCORE_Kestrel__Certificates__Default__Password=test123
+      - ASPNETCORE_Kestrel__Certificates__Default__Path=/https/aspnetapp.pfx
     healthcheck:
       interval: 5s
       retries: 10
-      test: curl --write-out 'HTTP %{http_code}' --fail --silent --output /dev/null http://localhost:8888/hello
+      test: curl --write-out 'HTTP %{http_code}' --fail --silent --output /dev/null https://localhost:5010/weatherforecast
+
 
   collector-remote:
     image: otel/opentelemetry-collector:latest
