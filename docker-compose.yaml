@@ -103,7 +103,12 @@ services:
   #     test: curl --write-out 'HTTP %{http_code}' --fail --silent --output /dev/null http://localhost:8888/hello
 
   hello-net:
-    image: cliento/hello:latest
+    build:
+      context: ./Hello
+      dockerfile: ../Dockerfile # installs OpenTelemetry .NET Automatic Instrumentation (commented out)
+    entrypoint: "./out/Hello --urls http://*:5000"
+    # env_file:
+    #   - otel-dotnet.env # enable OpenTelemetry .NET Automatic Instrumentation
     networks: 
       - broker-kafka
     container_name: hello-net
@@ -114,14 +119,15 @@ services:
       - ${HOME}/.aspnet/https:/https/
     ports:
       - "5010:5000"
+      - "5011:5001"
     environment:
-      - OTEL_TRACES_EXPORTER=otlp
-      - OTEL_METRICS_EXPORTER=otlp
-      - OTEL_EXPORTER_OTLP_ENDPOINT=http://collector:5555
-      - OTEL_TRACES_SAMPLER=always_on
-      - OTEL_IMR_EXPORT_INTERVAL=5000
-      - OTEL_METRIC_EXPORT_INTERVAL=5000
-      - OTEL_RESOURCE_ATTRIBUTES=service.name=hello-net,service.version=1.0,deployment.environment=development
+      # - OTEL_TRACES_EXPORTER=otlp
+      # - OTEL_METRICS_EXPORTER=otlp
+      # - OTEL_EXPORTER_OTLP_ENDPOINT=http://collector:5555
+      # - OTEL_TRACES_SAMPLER=always_on
+      # - OTEL_IMR_EXPORT_INTERVAL=5000
+      # - OTEL_METRIC_EXPORT_INTERVAL=5000
+      # - OTEL_RESOURCE_ATTRIBUTES=service.name=hello-net,service.version=1.0,deployment.environment=development
       - ASPNETCORE_URLS=http://+5000
       - ASPNETCORE_HTTP_PORT=https://+5001
       - ASPNETCORE_Kestrel__Certificates__Default__Password=test123
@@ -129,7 +135,7 @@ services:
     healthcheck:
       interval: 5s
       retries: 10
-      test: curl --write-out 'HTTP %{http_code}' --fail --silent --output /dev/null https://localhost:5010/weatherforecast
+      test: curl --write-out 'HTTP %{http_code}' --fail --silent --output /dev/null https://localhost:5001/hello -k 
 
 
   collector-remote:
@@ -155,7 +161,6 @@ services:
       - ./collector-config-local.yaml:/etc/collector-config-local.yaml
     ports:
       - "6666:6666"  
-  
 
   tempo:
     image: grafana/tempo:1.5.0
