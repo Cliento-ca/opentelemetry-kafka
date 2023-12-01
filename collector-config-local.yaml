@@ -1,8 +1,10 @@
 receivers:
-  otlp:
-    protocols:
-      grpc:
-        endpoint: 0.0.0.0:5555
+  kafka:
+    brokers: # (default = localhost:9092): The list of kafka brokers
+      - kafka-1:9092 
+      - kafka-2:9092
+    topic: otlp_metrics # (default = otlp_spans for traces, otlp_metrics for metrics, otlp_logs for logs): The name of the kafka topic to export to.
+    protocol_version: 2.0.0
 
 processors:
   batch:
@@ -13,21 +15,12 @@ exporters:
   prometheus:
     endpoint: collector:6666
     namespace: default
-  otlp:
-    endpoint: tempo:4317
-    tls:
-      insecure: true
-
 service:
   pipelines:
     metrics:
-      receivers: [otlp]
+      receivers: [kafka]
       processors: [batch]
       exporters: [prometheus]
-    traces:
-      receivers: [otlp]
-      processors: [batch]
-      exporters: [otlp]
   telemetry:
     logs:
       level: debug

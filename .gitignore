@@ -3,3 +3,4 @@ tempo-data
 .vscode
 opentelemetry-javaagent-all.jar
 hello-app.log
+kafka/data

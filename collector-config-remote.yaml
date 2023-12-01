@@ -1,0 +1,32 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:5555
+
+processors:
+  batch:
+    timeout: 1s
+    send_batch_size: 1024
+
+exporters:
+  kafka:
+    brokers:
+      - kafka-1:9092 
+      - kafka-2:9092
+    # topic: # (default = otlp_spans for traces, otlp_metrics for metrics, otlp_logs for logs): The name of the kafka topic to export to.
+    protocol_version: 2.0.0
+
+service:
+  pipelines:
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [kafka]
+    traces:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [kafka]
+  telemetry:
+    logs:
+      level: debug
