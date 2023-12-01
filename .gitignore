@@ -4,3 +4,5 @@ tempo-data
 opentelemetry-javaagent-all.jar
 hello-app.log
 kafka/data
+bin
+obj

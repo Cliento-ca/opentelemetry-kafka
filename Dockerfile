@@ -1,9 +1,10 @@
-FROM maven:3.8.1-openjdk-17-slim
+FROM mcr.microsoft.com/dotnet/sdk:6.0-jammy
+# install OpenTelemetry .NET Automatic Instrumentation
+# ARG OTEL_VERSION=1.2.0
+# ADD https://github.com/open-telemetry/opentelemetry-dotnet-instrumentation/releases/download/v${OTEL_VERSION}/otel-dotnet-auto-install.sh otel-dotnet-auto-install.sh
+# RUN apt-get update && apt-get install -y unzip && \
+#     OTEL_DOTNET_AUTO_HOME="/otel-dotnet-auto" sh otel-dotnet-auto-install.sh
 
-VOLUME /tmp
-ADD . /usr/src/app
-WORKDIR /usr/src/app
-
-RUN mvn clean package -DskipTests
-RUN curl -L https://github.com/aws-observability/aws-otel-java-instrumentation/releases/download/v1.28.1/aws-opentelemetry-agent.jar --output opentelemetry-javaagent-all.jar
-ENTRYPOINT [ "java", "-javaagent:opentelemetry-javaagent-all.jar", "-jar", "target/hello-app-1.0.jar" ]
+WORKDIR /app
+COPY . .
+RUN dotnet publish -c Release -o out
